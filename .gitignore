@@ -1,0 +1,6 @@
+*.jpeg
+*.png
+*.ppm
+*/__pycache__
+*.ipynb
+*test*
