@@ -194,7 +194,7 @@ class Document:
     def main_loop(self):
         while True:
             self.render()
-            time.sleep(0.1)
+            time.sleep(0.05)
 
 
 ####################################################################################

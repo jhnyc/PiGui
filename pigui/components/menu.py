@@ -14,7 +14,6 @@ from threading import Thread
 class Menu(Component):
     def __init__(self, document: Document):
         super().__init__(document)
-        # TODO 
         self.document = document
         self.prev_cur_position = None
         self.menu_items = ["Camera", "Statistic", "Clock", "Something"]
@@ -45,7 +44,7 @@ class Menu(Component):
     def on_click(self):
         cur_item = self.menu_items[self.cur_position]
         print(f"Selected {cur_item}")
-        self.document.goto_frame("stat")
+        self.document.goto_frame("camera")
         # if cur_item == "Camera":
         #     # TODO Draw starting annimation
         #     CameraApp(self.document).render()
