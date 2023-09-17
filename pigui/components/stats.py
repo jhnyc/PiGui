@@ -7,19 +7,21 @@ import psutil
 
 
 class StatApp(Component):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, document):
+        super().__init__(document)
+        self.document = document
         self.ip = State("")
         self.cpu = State("")
         self.mem = State("")
         self.disk = State("")
         self.font = FONT
         
-        self.event_listeners.append(EventListener(events=[True], callbacks=[self.update_sys_info], sleep=2))
+        # Separate listeners one for updating screen @2s, one for listening to input @0.1s
+        update_listener = EventListener([(True, self.update_sys_info)], sleep=2)
+        input_listener = EventListener([(self.document.controller.joystick.on_press, self.goto_frame_fn("menu"))], sleep=0.1)
+        self.register_event_listener([update_listener, input_listener])
         
-    def __repr__(self):
-        return f"{self.ip} {self.cpu}"
-
+    
     def render(self) -> Image:
         image = Image.new("1", (128, 64))
         draw = ImageDraw.Draw(image)
