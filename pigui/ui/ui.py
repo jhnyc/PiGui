@@ -22,23 +22,35 @@ class State:
 
 
 class EventListener:
-    # TODO maybe take (event, callback) tuple would be more ergonomic
     def __init__(
-        self, event_callback: List[Tuple[Union[bool, Callable], Callable]], sleep=0.1
+        self, event_callback: List[Tuple[Union[bool, Callable], Callable]], sleep=0.1, debounce=None
     ):
         self.event_callback = event_callback
         self.sleep = sleep
+        
         self.stop_thread = False
+        
+        self.debounce_sec = debounce
+        self.debounce_times = [0 for _ in self.event_callback] if debounce else None
 
     def start(self):
         self.stop_thread = False
 
         def target():
             while not self.stop_thread:
-                for event, callback in self.event_callback:
+                for ix, (event, callback) in enumerate(self.event_callback):
                     event_triggered = event if isinstance(event, bool) else event()
-                    if event_triggered:
-                        callback()
+                    if not event_triggered:
+                        continue
+                    # Event triggered -> check whether debounce or not
+                    cur_time = time.time()
+                    is_debounce = False if not self.debounce_sec else cur_time - self.debounce_times[ix] < self.debounce_sec
+                    if is_debounce:
+                        continue
+                    
+                    callback()
+                    # Update debounce_times
+                    if self.debounce_sec: self.debounce_times[ix] = cur_time
                 time.sleep(self.sleep)
 
         thread = Thread(target=target)
@@ -66,26 +78,31 @@ class Component(ABC):
     def render(self) -> Image:
         pass
 
-    def register_event_listener(self, event_listener: Union[EventListener, List[EventListener]]):
+    def register_event_listener(
+        self, event_listener: Union[EventListener, List[EventListener]]
+    ):
         if isinstance(event_listener, EventListener):
             self.event_listeners.append(event_listener)
         else:
             self.event_listeners.extend(event_listener)
 
-    def as_frame(self):
-        frame = Frame(components=[self])
+    def as_frame(self, frame_name=None):
+        frame = Frame(components=[self], frame_name=frame_name)
         return frame
-    
+
     def goto_frame_fn(self, frame_name) -> Callable:
         def wrap():
             self.document.goto_frame(frame_name)
+
         return wrap
+
 
 ####################################################################################
 
 
 class Frame(ABC):
-    def __init__(self, components=None):
+    def __init__(self, components=None, frame_name=None):
+        self.frame_name = frame_name
         self.components = []
         self.component_states = {}
         self.event_listeners: List[EventListener] = []
@@ -105,10 +122,12 @@ class Frame(ABC):
             self.event_listeners.extend(component.event_listeners)
 
     def start_event_listeners(self):
+        print(f"{self.frame_name} EL Started", self.event_listeners)
         for listener in self.event_listeners:
             listener.start()
 
     def stop_event_listeners(self):
+        print(f"{self.frame_name} EL Stopped", self.event_listeners)
         for listener in self.event_listeners:
             listener.stop()
 
@@ -117,7 +136,8 @@ class Frame(ABC):
         # Layer components over one another
         for component in self.components:
             component_img = component.render()
-            image.paste(component_img, component.get_bounding_region())
+            if component_img:
+                image.paste(component_img, component.get_bounding_region())
         return image
 
 
@@ -145,7 +165,7 @@ class Document:
 
         # TODO need to start frame event listeners
         self.frame_event_listener_states: Dict[Frame, bool] = {}
-        
+
         self.cur_frame_name = None
 
     def render(self):
@@ -153,30 +173,31 @@ class Document:
         cur_frame = self.frames[self.cur_frame_name]
 
         if (
-            cur_frame not in self.frame_event_listener_states 
+            cur_frame not in self.frame_event_listener_states
             or self.frame_event_listener_states[cur_frame] is False
         ):
             cur_frame.start_event_listeners()
             self.frame_event_listener_states[cur_frame] = True
 
         cur_frame_img = cur_frame.render()
-        self.displayer.display_img(cur_frame_img)
+        if cur_frame_img:
+            self.displayer.display_img(cur_frame_img)
 
     def pack_frame(self, frame_name: str, frame: Frame):
         # Assume the first frame added as the entry point
         if self.cur_frame_name is None:
             self.cur_frame_name = frame_name
         self.frames[frame_name] = frame
-        
+
     def goto_frame(self, frame_name):
         # Before rendering new frame, remove current frame event listeners
         cur_frame = self.frames[self.cur_frame_name]
         self.remove_frame_event_listeners(cur_frame)
-        
+
         if frame_name not in self.frames:
             raise ValueError(f"Frame `{frame_name}` not found.")
         self.cur_frame_name = frame_name
-        
+
     def remove_frame_event_listeners(self, frame: Frame):
         frame.stop_event_listeners()
         self.frame_event_listener_states[frame] = False
@@ -191,10 +212,22 @@ class Document:
                 self.component_state = cur_state
             time.sleep(0.1)
 
-    def main_loop(self):
+    def main_loop(self, fps: bool = True):
+        if fps:
+            frames = 0
+            start_time = time.time()
+
         while True:
             self.render()
-            time.sleep(0.05)
+            if not fps:
+                continue
+            frames += 1
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= 1.0:
+                fps = frames / elapsed_time
+                print(f"FPS: {fps:.2f}")
+                frames = 0
+                start_time = time.time()
 
 
 ####################################################################################

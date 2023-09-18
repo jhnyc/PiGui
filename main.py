@@ -7,14 +7,14 @@ import time
 
 doc = Document()
 
-stat_frame = StatApp(doc).as_frame()
-cam_frame = CameraApp(doc).as_frame()
+stat_frame = StatApp(doc).as_frame("stat")
+cam_frame = CameraApp(doc).as_frame("cam")
 menu = Menu(doc)
 
-menu_frame = Frame(components=[menu])
+menu_frame = Frame(components=[menu], frame_name="menu")
 
 
 doc.pack_frame("menu", menu_frame)
 doc.pack_frame("stat", stat_frame)
 doc.pack_frame("camera", cam_frame)
-doc.main_loop()
+doc.main_loop(fps=False)

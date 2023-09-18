@@ -14,6 +14,7 @@ class Display:
         self.display.show()
 
     def display_img(self, img: Image, clear=False):
-        if clear: self.clear_display()
+        if clear:
+            self.clear_display()
         self.display.image(img)
         self.display.show()

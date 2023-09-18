@@ -2,6 +2,6 @@
 *.jpg
 *.png
 *.ppm
-*__pycache__
+*__pycache__*
 *.ipynb
-*test*
+*_test*
