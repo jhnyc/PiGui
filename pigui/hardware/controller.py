@@ -4,6 +4,7 @@ from threading import Thread
 import RPi.GPIO as GPIO
 import time
 
+
 # TODO - add debounce mechanism
 class Controller(ABC):
     """Individual controller such as button, joystick, etc."""
@@ -85,11 +86,27 @@ class Button(Controller):
         return False
 
 
-# TODO this interface kind of weird 
+# TODO this interface kind of weird
 class MasterController:
     """Interface for all controller/input devices."""
+
     def __init__(self):
         self.joystick = Joystick(27, 17, 22)
         self.button = Button(4)
 
-    
+    def on_up(self):
+        self.joystick.on_up()
+
+    def on_down(self):
+        self.joystick.on_up()
+
+    def on_left(self):
+        self.joystick.on_right()
+
+    def on_right(self):
+        self.joystick.on_right()
+
+    def on_press(self):
+        self.joystick.on_press()
+
+

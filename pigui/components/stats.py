@@ -1,5 +1,5 @@
 from pigui.ui.ui import Component, Document, State, EventListener
-from pigui.config import HEIGHT, WIDTH, FONT
+from pigui.utils.constants import screen_height, screen_width, font
 import subprocess
 from PIL import Image, ImageDraw
 from threading import Thread
@@ -14,7 +14,7 @@ class StatApp(Component):
         self.cpu = State("")
         self.mem = State("")
         self.disk = State("")
-        self.font = FONT
+        self.font = font
 
         # Separate listeners one for updating screen @2s, one for listening to input @0.1s
         update_listener = EventListener([(True, self.update_sys_info)], sleep=2)

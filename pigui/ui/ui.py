@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw, ImageFont
 from pigui.hardware.display import Display
 from pigui.hardware.controller import MasterController
-from pigui.config import FONT
+from pigui.utils.constants import font
 from abc import ABC, abstractmethod
 from threading import Thread
 import RPi.GPIO as GPIO
@@ -23,13 +23,16 @@ class State:
 
 class EventListener:
     def __init__(
-        self, event_callback: List[Tuple[Union[bool, Callable], Callable]], sleep=0.1, debounce=None
+        self,
+        event_callback: List[Tuple[Union[bool, Callable], Callable]],
+        sleep=0.1,
+        debounce=None,
     ):
         self.event_callback = event_callback
         self.sleep = sleep
-        
+
         self.stop_thread = False
-        
+
         self.debounce_sec = debounce
         self.debounce_times = [0 for _ in self.event_callback] if debounce else None
 
@@ -44,13 +47,18 @@ class EventListener:
                         continue
                     # Event triggered -> check whether debounce or not
                     cur_time = time.time()
-                    is_debounce = False if not self.debounce_sec else cur_time - self.debounce_times[ix] < self.debounce_sec
+                    is_debounce = (
+                        False
+                        if not self.debounce_sec
+                        else cur_time - self.debounce_times[ix] < self.debounce_sec
+                    )
                     if is_debounce:
                         continue
-                    
+
                     callback()
                     # Update debounce_times
-                    if self.debounce_sec: self.debounce_times[ix] = cur_time
+                    if self.debounce_sec:
+                        self.debounce_times[ix] = cur_time
                 time.sleep(self.sleep)
 
         thread = Thread(target=target)
@@ -146,14 +154,9 @@ class Frame(ABC):
 
 class Document:
     def __init__(self, width=128, height=64):
-        self.width = width
-        self.height = height
-
-        self.image = Image.new("1", (width, height))
-        self.draw = ImageDraw.Draw(self.image)
         self.displayer = Display()
         self.controller = MasterController()
-        self.font = FONT
+        self.font = font
 
         self.components = []
         self.component_state = {}
@@ -161,9 +164,9 @@ class Document:
         self.frames: Dict[str, Frame] = {}
 
         # A separate thread to check component states
-        # TODO Thread(target=self.compare_state).start()
 
-        # TODO need to start frame event listeners
+        # Keep track of whether a frame's event listeners
+        # e.g. if switch from Menu to an app, menu's event listener's would be stopped
         self.frame_event_listener_states: Dict[Frame, bool] = {}
 
         self.cur_frame_name = None
@@ -228,6 +231,7 @@ class Document:
                 print(f"FPS: {fps:.2f}")
                 frames = 0
                 start_time = time.time()
+            time.sleep(0.1)
 
 
 ####################################################################################

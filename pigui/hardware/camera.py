@@ -1,6 +1,6 @@
 import picamera
 from picamera.array import PiRGBArray
-from pigui.config import WIDTH, HEIGHT, FRAMERATE
+from pigui.utils.constants import screen_width, screen_height, screen_frame_rate
 from io import BytesIO
 from typing import Union, Generator
 from PIL import Image, ImageFont
@@ -11,9 +11,9 @@ import sys
 class Camera:
     def __init__(self, image_resolution=(1920, 1080)):
         self.camera = picamera.PiCamera()
-        self.camera.resolution = (WIDTH, HEIGHT)
+        self.camera.resolution = (screen_width, screen_height)
         self.image_resolution = image_resolution
-        self.camera.framerate = FRAMERATE
+        self.camera.framerate = screen_frame_rate
 
     def capture_img_stream(self, format="jpeg") -> BytesIO:
         img_stream = BytesIO()
@@ -25,7 +25,7 @@ class Camera:
         self.camera.resolution = self.image_resolution
         self.camera.capture(path, format=format)
         # Revert camera resolution optimized for video/preview mode when done
-        self.camera.resolution = (WIDTH, HEIGHT)
+        self.camera.resolution = (screen_width, screen_height)
 
     def video_stream(self, format="bgr") -> Generator:
         vid_stream = PiRGBArray(self.camera)
@@ -35,7 +35,7 @@ class Camera:
             yield frame
             # Clear buffer before next frame
             vid_stream.truncate(0)
-            
+
     def close(self):
         self.camera.close()
 

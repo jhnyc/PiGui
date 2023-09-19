@@ -3,7 +3,8 @@ from pigui.ui.ui import Component, EventListener
 from pigui.hardware.controller import Button, Joystick
 from pigui.ui.ui import Document
 from pigui.components.camera import CameraApp
-from pigui.config import FONT, OFFSET, PADDING
+from pigui.components.draw import DrawApp
+from pigui.utils.constants import font, text_line_height_px, text_left_padding
 from pigui.components.stats import StatApp
 from threading import Thread
 
@@ -13,7 +14,7 @@ class Menu(Component):
         super().__init__(document)
         self.document = document
         self.prev_cur_position = None
-        self.menu_items = ["Camera", "Statistic", "Clock", "Something"]
+        self.menu_items = ["Camera", "Statistic", "Clock", "Draw"]
         self.cur_position = 1
 
         evt_cb_tup = [
@@ -28,13 +29,13 @@ class Menu(Component):
         image = Image.new("1", (128, 64))
         draw = ImageDraw.Draw(image)
         for i, item in enumerate(self.menu_items):
-            x, y = 0, i * OFFSET
+            x, y = 0, i * text_line_height_px
             if i == self.cur_position:
                 draw.rectangle(((x, y), (128, y + 16)), outline=0, fill=255)
-                draw.text((0 + PADDING, y), item, font=FONT, fill=0)
+                draw.text((0 + text_left_padding, y), item, font=font, fill=0)
             else:
                 draw.rectangle(((x, y), (128, y + 16)), outline=0, fill=0)
-                draw.text((0 + PADDING, y), item, font=FONT, fill=255)
+                draw.text((0 + text_left_padding, y), item, font=font, fill=255)
 
         return image
 
@@ -45,6 +46,8 @@ class Menu(Component):
             self.document.goto_frame("camera")
         elif cur_item == "Statistic":
             self.document.goto_frame("stat")
+        elif cur_item == "Draw":
+            self.document.goto_frame("draw")
 
     def prev_item(self):
         print("pressed Up")
