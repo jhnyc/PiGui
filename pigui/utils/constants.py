@@ -21,3 +21,8 @@ font = CustomFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15)
 screen_width = 128
 screen_height = 64
 screen_frame_rate = 30
+
+
+# Game
+game_bg_color = 0
+game_fg_color = 1
