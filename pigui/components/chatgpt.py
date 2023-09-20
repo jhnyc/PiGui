@@ -1,10 +1,9 @@
-from pigui.ui.ui import Component, Document, EventListener
-from pigui.utils.constants import font
-from PIL import Image, ImageDraw
 from typing import List
-from pigui.utils.text import format_text, format_tokens
-from pigui.utils.constants import *
+from PIL import Image, ImageDraw
 from pigui.components.api.chatgpt import stream_chat_completion
+from pigui.ui import Component, Document, EventListener
+from pigui.utils.constants import *
+from pigui.utils.text import format_text, format_tokens
 
 
 class ChatGPT(Component):

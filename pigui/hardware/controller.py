@@ -1,8 +1,8 @@
-from typing import List, Callable, Union
+import time
 from abc import ABC, abstractmethod
 from threading import Thread
+from typing import Callable, List, Union
 import RPi.GPIO as GPIO
-import time
 
 
 # TODO - add debounce mechanism
@@ -108,5 +108,3 @@ class MasterController:
 
     def on_press(self):
         self.joystick.on_press()
-
-

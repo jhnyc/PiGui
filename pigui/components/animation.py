@@ -1,6 +1,6 @@
 from PIL import Image, ImageDraw, ImageChops, ImageOps
-from pigui.ui.ui import Document
-from pigui.config import FONT
+from pigui.ui import Document
+from pigui.utils.constants import font
 import time
 from hardware.camera import ImageProcessor
 
@@ -16,10 +16,10 @@ class Animation:
         )
         document.render()
         time.sleep(1)
-        document.draw.text((22, 22), "Image saved!", font=FONT, fill=255)
+        document.draw.text((22, 22), "Image saved!", font=font, fill=255)
         document.render()
 
-    def unveil(self, document, base_image:Image):
+    def unveil(self, document, base_image: Image):
         """Ellipse expands out from the middle unveil the base image"""
         width, height = document.width, document.height
         for frame in range(10):
@@ -36,11 +36,11 @@ class Animation:
 
             document.image = ImageChops.logical_and(base_image, mask)
             document.render()
-            
+
         document.draw = ImageDraw.Draw(document.image)
 
-    def landing(self, document: Document):
+    def landing(self):
         img = ImageProcessor.load_img(
             "/home/pi/Desktop/camera/gui/asset/PiOS.png", resize=(128, 64)
         )
-        self.unveil(document, img)
+        return img

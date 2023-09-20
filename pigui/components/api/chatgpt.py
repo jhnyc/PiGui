@@ -19,7 +19,7 @@ def generate_test_output():
         i += n
 
 
-def stream_chat_completion(prompt: str, test=True) -> Generator[str]:
+def stream_chat_completion(prompt: str, test=True):
     """Call OpenAI chat completion. Returns a generator of token strings."""
     if test:
         for i in generate_test_output():

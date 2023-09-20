@@ -1,7 +1,7 @@
 import board
 import busio
 import adafruit_ssd1306
-from PIL import Image, ImageFont
+from PIL import Image
 
 
 class Display:

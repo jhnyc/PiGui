@@ -1,6 +1,6 @@
 from pigui.hardware.camera import Camera, ImageProcessor
 from pigui.hardware.controller import Button, Joystick
-from pigui.ui.ui import Component, Document, EventListener
+from pigui.ui import Component, Document, EventListener
 from pigui.components.still import Still
 import time
 import os

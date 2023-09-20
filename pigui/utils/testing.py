@@ -1,6 +1,6 @@
 import time
 from typing import Union
-from pigui.ui.ui import Component, Frame, Document
+from pigui.ui import Component, Frame, Document
 
 
 def measure_event_time(event_func):

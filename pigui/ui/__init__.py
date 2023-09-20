@@ -231,7 +231,7 @@ class Document:
                 print(f"FPS: {fps:.2f}")
                 frames = 0
                 start_time = time.time()
-            time.sleep(0.1)
+            time.sleep(0.03)
 
 
 ####################################################################################

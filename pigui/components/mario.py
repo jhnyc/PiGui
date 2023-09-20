@@ -1,8 +1,8 @@
-from PIL import Image, ImageDraw
-from pigui.ui.ui import Component, EventListener
-import numpy as np
-from pigui.utils.constants import *
 import random
+import numpy as np
+from PIL import Image, ImageDraw
+from pigui.ui import Component, EventListener
+from pigui.utils.constants import *
 
 
 class Player:
@@ -104,7 +104,7 @@ class Mario(Component):
             block = self.gen_random_block()
             # TODO Check if overlap any other blocks
             self.blocks_on_screen.add(block)
-        self.reset_pixel_array()
+        self.reset_pixel_array()  # Not the most efficient, but yeah
         self.draw_blocks()
         self.update_blocks_pos()
 

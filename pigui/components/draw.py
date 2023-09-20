@@ -1,8 +1,8 @@
 import time
-from PIL import Image
-from pigui.ui.ui import Component, EventListener
-from pigui.hardware.controller import Joystick
 import numpy as np
+from PIL import Image
+from pigui.hardware.controller import Joystick
+from pigui.ui import Component, EventListener
 
 
 class DrawApp(Component):

@@ -1,9 +1,8 @@
-from pigui.ui.ui import Component, Document, State, EventListener
-from pigui.utils.constants import screen_height, screen_width, font
 import subprocess
-from PIL import Image, ImageDraw
-from threading import Thread
 import psutil
+from PIL import Image, ImageDraw
+from pigui.ui import Component, Document, EventListener, State
+from pigui.utils.constants import *
 
 
 class StatApp(Component):

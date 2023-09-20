@@ -1,11 +1,10 @@
-import picamera
-from picamera.array import PiRGBArray
-from pigui.utils.constants import screen_width, screen_height, screen_frame_rate
 from io import BytesIO
-from typing import Union, Generator
-from PIL import Image, ImageFont
+from typing import Generator, Union
+import picamera
 from numpy import ndarray
-import sys
+from picamera.array import PiRGBArray
+from PIL import Image
+from pigui.utils.constants import *
 
 
 class Camera:

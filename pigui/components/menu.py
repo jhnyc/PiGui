@@ -1,12 +1,6 @@
-from PIL import Image, ImageDraw, ImageFont
-from pigui.ui.ui import Component, EventListener
-from pigui.hardware.controller import Button, Joystick
-from pigui.ui.ui import Document
-from pigui.components.camera import CameraApp
-from pigui.components.draw import DrawApp
-from pigui.utils.constants import font, text_line_height_px, text_left_padding
-from pigui.components.stats import StatApp
-from threading import Thread
+from PIL import Image, ImageDraw
+from pigui.ui import Component, Document, EventListener
+from pigui.utils.constants import *
 
 
 class Menu(Component):
