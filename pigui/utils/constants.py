@@ -26,3 +26,8 @@ screen_frame_rate = 30
 # Game
 game_bg_color = 0
 game_fg_color = 1
+game_speed_divisor_score = 10
+game_block_min_h = 8
+game_block_max_h = 8
+game_block_min_w = 8
+game_block_max_w = 8

@@ -58,9 +58,10 @@ def player_block_collision(player, block):
 
 
 class Mario(Component):
-    def __init__(self, document, speed=1):
+    def __init__(self, document):
         super().__init__(document)
-        self.speed = speed
+        self.score = 0
+        self.speed = self.score // game_speed_divisor_score + 1
         self.pixel_array = np.full(
             (screen_height, screen_width), game_bg_color, dtype=bool
         )
@@ -79,7 +80,6 @@ class Mario(Component):
                 debounce=0.3,
             )
         )
-        self.score = 0
         self.blocks_on_screen = set()
 
         self.is_paused = False
