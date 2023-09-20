@@ -61,7 +61,7 @@ class Mario(Component):
     def __init__(self, document):
         super().__init__(document)
         self.score = 0
-        self.speed = self.score // game_speed_divisor_score + 1
+        self.speed = 1
         self.pixel_array = np.full(
             (screen_height, screen_width), game_bg_color, dtype=bool
         )
@@ -92,6 +92,7 @@ class Mario(Component):
         game_img = Image.fromarray(game)
         self.collision_detection()
         self.draw_score(game_img)
+        self.update_game_speed()
         return game_img
 
     def draw_score(self, image: Image):
@@ -163,3 +164,6 @@ class Mario(Component):
             print("n blocks", len([b.x < 128 for b in self.blocks_on_screen]))
         else:
             print("Game resumed.")
+
+    def update_game_speed(self):
+        self.speed = self.score // game_speed_divisor_score + 1
