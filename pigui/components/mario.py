@@ -39,6 +39,66 @@ class Player:
         new_image[y : y + h, x : x + w] += self.player_array
         return new_image
 
+    def jump(self):
+        if self.is_jumping:
+            return
+        self.is_jumping = True
+        self.is_ascending = True
+
+
+class ObjectCollection(ABC):
+    def __init__(self):
+        self.objects = set()
+
+    @abstractmethod
+    def update(self):
+        pass
+
+    @abstractmethod
+    def draw(self):
+        pass
+
+
+class CoinCollection(ObjectCollection):
+    def __init__(self):
+        super().__init__()
+        self._collision_count = 0
+
+    def generate(self):
+        self.objects.add(Coin.generate())
+
+    def update(self, player, speed):
+        if random.random() > 0.98:
+            self.generate()
+        self.update_pos(speed)
+        self.collision_detection(player)
+
+    def update_pos(self, speed):
+        for coin in self.objects:
+            coin.x -= speed
+
+    def collision_detection(self, player):
+        coins_to_remove = set()
+        for coin in self.objects:
+            if coin.collision(player):
+                self._collision_count += 1
+                coins_to_remove.add(coin)
+        self.objects.difference_update(coins_to_remove)
+
+    def get_collision_count(self):
+        return self._collision_count
+
+    def draw(self, pixel_array):
+        coins_to_remove = set()
+        for coin in self.objects:
+            x, y, w, h = coin.get_pos()
+            if x + w < 0:
+                coins_to_remove.add(coin)
+                continue
+            if 0 <= x <= screen_width:
+                coin.draw_on(pixel_array)
+        self.objects.difference_update(coins_to_remove)
+
 
 class Coin:
     def __init__(self, y, w, h, image=coin):
@@ -59,21 +119,30 @@ class Coin:
             :, 0:display_w
         ]
 
+    @staticmethod
+    def generate():
+        y = random.randint(16, screen_height - game_coin_min_h - 1)
+        w = random.randint(game_coin_min_w, game_coin_max_w)
+        h = random.randint(game_coin_min_h, min(screen_height - y, game_coin_max_h))
+        return Coin(y, w, h)
 
-def player_coin_collision(player, coin):
-    player_right = player.x + player.w
-    player_bottom = player.y + player.h
-    coin_right = coin.x + coin.w
-    coin_bottom = coin.y + coin.h
+    def collision(self, player):
+        if self.is_collided:
+            return False
+        player_right = player.x + player.w
+        player_bottom = player.y + player.h
+        coin_right = self.x + self.w
+        coin_bottom = self.y + self.h
 
-    if (
-        player.x < coin_right
-        and player_right > coin.x
-        and player.y < coin_bottom
-        and player_bottom > coin.y
-    ):
-        return True
-    return False
+        if (
+            player.x < coin_right
+            and player_right > self.x
+            and player.y < coin_bottom
+            and player_bottom > self.y
+        ):
+            self.is_collided = True
+            return True
+        return False
 
 
 class Mario(Component):
@@ -84,32 +153,34 @@ class Mario(Component):
         self.pixel_array = np.full(
             (screen_height, screen_width), game_bg_color, dtype=bool
         )
-        self.player_is_jumping = False
         self.player = Player(59, 48, 10, 16, mario_player)  # x, y, w, h
         self.register_event_listener(
             EventListener(
                 [
-                    (self.document.controller.joystick.on_up, self.player_jump),
+                    (self.document.controller.joystick.on_up, self.player.jump),
                     (
                         self.document.controller.joystick.on_press,
-                        self.print_coin_player_state,
+                        self.pause_game,
                     ),
                 ],
                 sleep=0.1,
                 debounce=0.3,
             )
         )
-        self.coins_on_screen = set()
-
+        self.coins = CoinCollection()
         self.is_paused = False
 
     def render(self):
         """Render current frame of the game"""
+        self.reset_pixel_array()
         if not self.is_paused:
-            self.update_pixel()
+            self.coins.update(self.player, self.speed)
+            self.coins.draw(self.pixel_array)
+            self.score = self.coins.get_collision_count()
+        # Draw player
         game = self.player.draw_on(self.pixel_array)
         game_img = Image.fromarray(game)
-        self.collision_detection()
+
         self.draw_score(game_img)
         self.update_game_speed()
         return game_img
@@ -118,64 +189,15 @@ class Mario(Component):
         draw = ImageDraw.Draw(image)
         draw.text((70, 2), f"Score: {self.score}", font=font.resize(10), fill=255)
 
-    def update_pixel(self):
-        if random.random() > 0.98:
-            coin = self.gen_random_coin()
-            # TODO Check if overlap any other coins
-            self.coins_on_screen.add(coin)
-        self.reset_pixel_array()  # Not the most efficient, but yeah
-        self.draw_coins()
-        self.update_coins_pos()
-
-    def collision_detection(self):
-        coins_to_remove = set()
-        for b in self.coins_on_screen:
-            if not b.is_collided and player_coin_collision(self.player, b):
-                self.score += 1
-                b.is_collided = True
-                coins_to_remove.add(b)
-        # After collision, remove the coin
-        self.coins_on_screen.difference_update(coins_to_remove)
-
     def reset_pixel_array(self):
         self.pixel_array = np.full(
             (screen_height, screen_width), game_bg_color, dtype=bool
         )
 
-    def update_coins_pos(self):
-        for b in self.coins_on_screen:
-            b.x -= self.speed
-
-    def gen_random_coin(self) -> coin:
-        y = random.randint(16, screen_height - game_coin_min_h - 1)
-        w = random.randint(game_coin_min_w, game_coin_max_w)
-        h = random.randint(game_coin_min_h, min(screen_height - y, game_coin_max_h))
-        return Coin(y, w, h)
-
-    def draw_coins(self):
-        coins_to_remove = set()
-        for b in self.coins_on_screen:
-            x, y, w, h = b.get_pos()
-            if x + w < 0:
-                coins_to_remove.add(b)
-                continue
-            if 0 <= x <= screen_width:
-                b.draw_on(self.pixel_array)
-        self.coins_on_screen.difference_update(coins_to_remove)
-
-    def player_jump(self):
-        if self.player.is_jumping:
-            return
-        self.player.is_jumping = True
-        self.player.is_ascending = True
-
-    def print_coin_player_state(self):
+    def pause_game(self):
         self.is_paused = not self.is_paused
         if self.is_paused:
             print("Game paused.")
-            print("player", self.player.get_pos())
-            print("coins", [b.get_pos() for b in self.coins_on_screen])
-            print("n coins", len([b.x < 128 for b in self.coins_on_screen]))
         else:
             print("Game resumed.")
 
