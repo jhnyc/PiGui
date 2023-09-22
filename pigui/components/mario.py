@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 
 
 class Player:
-    def __init__(self, x, y, w, h, player_array, jump_h=17):
+    def __init__(self, x, y, w, h, player_array, jump_h=18):
         self.init_x = x
         self.init_y = y
         self.x = x
@@ -23,7 +23,7 @@ class Player:
 
     def get_pos(self):
         if self.is_jumping:
-            self.y += -1 if self.is_ascending else 1
+            self.y += -2 if self.is_ascending else 2
             # if reach max height -> descend
             if self.init_y - self.y >= self.jump_h:
                 self.is_ascending = False
@@ -76,6 +76,10 @@ class ObjectCollection(ABC):
                 obj.draw_on(pixel_array)
         self.objects.difference_update(object_to_remove)
 
+    @abstractmethod
+    def reset(self):
+        """Reset collection states"""
+
 
 class CoinCollection(ObjectCollection):
     def __init__(self):
@@ -99,6 +103,10 @@ class CoinCollection(ObjectCollection):
     def get_collision_count(self):
         return self._collision_count
 
+    def reset(self):
+        self.objects.clear()
+        self._collision_count = 0
+
 
 class BlockCollection(ObjectCollection):
     def __init__(self):
@@ -114,6 +122,9 @@ class BlockCollection(ObjectCollection):
             if obj.collision(player):
                 return True
         return False
+
+    def reset(self):
+        self.objects.clear()
 
 
 class GameObject(ABC):
@@ -188,7 +199,7 @@ class Mario(Component):
                     (self.document.controller.joystick.on_up, self.player.jump),
                     (
                         self.document.controller.joystick.on_press,
-                        self.pause_game,
+                        self.on_press,
                     ),
                 ],
                 sleep=0.1,
@@ -198,20 +209,22 @@ class Mario(Component):
         self.coins = CoinCollection()
         self.blocks = BlockCollection()
         self.is_paused = False
+        self.is_gameover = False
 
     def render(self):
         """Render current frame of the game"""
         self.reset_pixel_array()
-        if not self.is_paused:
-            self.blocks.update(self.speed)
-            self.blocks.draw(self.pixel_array)
-            if self.blocks.collision_detection(self.player):
-                self.is_paused = True
-                return
 
-            self.coins.update(self.player, self.speed)
-            self.coins.draw(self.pixel_array)
-            self.score = self.coins.get_collision_count()
+        if self.is_paused or self.is_gameover:
+            return
+        self.blocks.update(self.speed)
+        self.blocks.draw(self.pixel_array)
+        if self.blocks.collision_detection(self.player):
+            print("boom")
+            self.is_gameover = True
+        self.coins.update(self.player, self.speed)
+        self.coins.draw(self.pixel_array)
+        self.score = self.coins.get_collision_count()
         # Draw player
         game = self.player.draw_on(self.pixel_array)
         game_img = Image.fromarray(game)
@@ -229,12 +242,25 @@ class Mario(Component):
             (screen_height, screen_width), game_bg_color, dtype=bool
         )
 
+    def reset_game(self):
+        self.is_gameover = False
+        self.score = 0
+        self.speed = 1
+        self.coins.reset()
+        self.blocks.reset()
+
     def pause_game(self):
         self.is_paused = not self.is_paused
         if self.is_paused:
             print("Game paused.")
         else:
             print("Game resumed.")
+
+    def on_press(self):
+        if self.is_gameover:
+            self.reset_game()
+            return
+        self.pause_game()
 
     def update_game_speed(self):
         self.speed = self.score // game_speed_divisor_score + 1

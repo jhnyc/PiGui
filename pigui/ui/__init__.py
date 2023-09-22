@@ -1,7 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 from threading import Thread
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union, Optional
 from PIL import Image, ImageDraw, ImageFont
 from pigui.hardware.controller import MasterController
 from pigui.hardware.display import Display
@@ -64,11 +64,12 @@ class EventListener:
 
     def stop(self):
         self.stop_thread = True
-        
+
     def on(self, func):
         def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
             return result
+
         return wrapper
 
 
@@ -87,7 +88,7 @@ class Component(ABC):
         return (0, 0, 128, 64)
 
     @abstractmethod
-    def render(self) -> Image:
+    def render(self) -> Optional[Image.Image]:
         pass
 
     def register_event_listener(
@@ -110,10 +111,14 @@ class Component(ABC):
 
     def on(self, event, sleep=0.1, debounce=None):
         def decorator(func):
-            self.register_event_listener(EventListener([(event, func)], sleep, debounce))
+            self.register_event_listener(
+                EventListener([(event, func)], sleep, debounce)
+            )
             print(f"registered {event}, {func}")
             return func
+
         return decorator
+
 
 ####################################################################################
 
@@ -149,14 +154,19 @@ class Frame(ABC):
         for listener in self.event_listeners:
             listener.stop()
 
-    def render(self) -> Image:
+    def render(self) -> Optional[Image.Image]:
         image = Image.new("1", (128, 64))
+
+        # Control whether return a new Image or none
+        is_empty = True
+
         # Layer components over one another
         for component in self.components:
             component_img = component.render()
             if component_img:
                 image.paste(component_img, component.get_bounding_region())
-        return image
+                is_empty = False
+        return image if not is_empty else None
 
 
 ####################################################################################
