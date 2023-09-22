@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 from pigui.ui import Component, EventListener
 from pigui.utils.constants import *
-from pigui.asset import mario_player, coin
+from pigui.asset import player, coin, block
 from abc import ABC, abstractmethod
 
 
@@ -58,24 +58,35 @@ class ObjectCollection(ABC):
     def draw(self):
         pass
 
+    def update_pos(self, speed):
+        for object in self.objects:
+            object.x -= speed
+
+    def generate_object(self, obj_type):
+        self.objects.add(obj_type.generate())
+
+    def draw(self, pixel_array):
+        object_to_remove = set()
+        for obj in self.objects:
+            x, y, w, h = obj.get_pos()
+            if x + w < 0:
+                object_to_remove.add(obj)
+                continue
+            if 0 <= x <= screen_width:
+                obj.draw_on(pixel_array)
+        self.objects.difference_update(object_to_remove)
+
 
 class CoinCollection(ObjectCollection):
     def __init__(self):
         super().__init__()
         self._collision_count = 0
 
-    def generate(self):
-        self.objects.add(Coin.generate())
-
     def update(self, player, speed):
         if random.random() > 0.98:
-            self.generate()
+            self.generate_object(Coin)
         self.update_pos(speed)
         self.collision_detection(player)
-
-    def update_pos(self, speed):
-        for coin in self.objects:
-            coin.x -= speed
 
     def collision_detection(self, player):
         coins_to_remove = set()
@@ -88,61 +99,78 @@ class CoinCollection(ObjectCollection):
     def get_collision_count(self):
         return self._collision_count
 
-    def draw(self, pixel_array):
-        coins_to_remove = set()
-        for coin in self.objects:
-            x, y, w, h = coin.get_pos()
-            if x + w < 0:
-                coins_to_remove.add(coin)
-                continue
-            if 0 <= x <= screen_width:
-                coin.draw_on(pixel_array)
-        self.objects.difference_update(coins_to_remove)
+
+class BlockCollection(ObjectCollection):
+    def __init__(self):
+        super().__init__()
+
+    def update(self, speed):
+        if random.random() > 0.99:
+            self.generate_object(Block)
+        self.update_pos(speed)
+
+    def collision_detection(self, player) -> bool:
+        for obj in self.objects:
+            if obj.collision(player):
+                return True
+        return False
 
 
-class Coin:
-    def __init__(self, y, w, h, image=coin):
-        self.x = screen_width  # Outside of screen
+class GameObject(ABC):
+    def __init__(self, y, w, h, image_array, x=screen_width):
+        self.x = x
         self.y = y
         self.w = w
         self.h = h
-        self.image = image
-        self.is_collided = False
-        assert self.image.shape == (self.h, self.w)
+        self.image_array = image_array
+        assert self.image_array.shape == (self.h, self.w)
 
     def get_pos(self):
         return self.x, self.y, self.w, self.h
-
-    def draw_on(self, image: np.ndarray):
-        display_w = min(screen_width - self.x, self.w)
-        image[self.y : self.y + self.h, self.x : self.x + display_w] = self.image[
-            :, 0:display_w
-        ]
-
-    @staticmethod
-    def generate():
-        y = random.randint(16, screen_height - game_coin_min_h - 1)
-        w = random.randint(game_coin_min_w, game_coin_max_w)
-        h = random.randint(game_coin_min_h, min(screen_height - y, game_coin_max_h))
-        return Coin(y, w, h)
 
     def collision(self, player):
         if self.is_collided:
             return False
         player_right = player.x + player.w
         player_bottom = player.y + player.h
-        coin_right = self.x + self.w
-        coin_bottom = self.y + self.h
+        object_right = self.x + self.w
+        object_bottom = self.y + self.h
 
         if (
-            player.x < coin_right
+            player.x < object_right
             and player_right > self.x
-            and player.y < coin_bottom
+            and player.y < object_bottom
             and player_bottom > self.y
         ):
             self.is_collided = True
             return True
         return False
+
+    def draw_on(self, image: np.ndarray):
+        display_w = min(screen_width - self.x, self.w)
+        image[self.y : self.y + self.h, self.x : self.x + display_w] = self.image_array[
+            :, 0:display_w
+        ]
+
+    @classmethod
+    def generate(cls):
+        """Method to generate an object."""
+        y = random.randint(16, screen_height - game_coin_min_h - 1)
+        w = random.randint(game_coin_min_w, game_coin_max_w)
+        h = random.randint(game_coin_min_h, min(screen_height - y, game_coin_max_h))
+        return cls(y, w, h)
+
+
+class Coin(GameObject):
+    def __init__(self, y, w, h, image_array=coin):
+        super().__init__(y, w, h, image_array)
+        self.is_collided = False
+
+
+class Block(GameObject):
+    def __init__(self, y, w, h, image_array=block):
+        super().__init__(y, w, h, image_array)
+        self.is_collided = False
 
 
 class Mario(Component):
@@ -153,7 +181,7 @@ class Mario(Component):
         self.pixel_array = np.full(
             (screen_height, screen_width), game_bg_color, dtype=bool
         )
-        self.player = Player(59, 48, 10, 16, mario_player)  # x, y, w, h
+        self.player = Player(59, 48, 10, 16, player)  # x, y, w, h
         self.register_event_listener(
             EventListener(
                 [
@@ -168,12 +196,19 @@ class Mario(Component):
             )
         )
         self.coins = CoinCollection()
+        self.blocks = BlockCollection()
         self.is_paused = False
 
     def render(self):
         """Render current frame of the game"""
         self.reset_pixel_array()
         if not self.is_paused:
+            self.blocks.update(self.speed)
+            self.blocks.draw(self.pixel_array)
+            if self.blocks.collision_detection(self.player):
+                self.is_paused = True
+                return
+
             self.coins.update(self.player, self.speed)
             self.coins.draw(self.pixel_array)
             self.score = self.coins.get_collision_count()
