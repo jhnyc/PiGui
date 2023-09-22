@@ -1,13 +1,11 @@
-from PIL import Image, ImageDraw, ImageFont
-from pigui.hardware.display import Display
-from pigui.hardware.controller import MasterController
-from pigui.utils.constants import font
+import time
 from abc import ABC, abstractmethod
 from threading import Thread
-import RPi.GPIO as GPIO
-import time
-from pigui.ui.helper import deep_compare
-from typing import Tuple, List, Union, Callable, Dict, Tuple
+from typing import Callable, Dict, List, Tuple, Union
+from PIL import Image, ImageDraw, ImageFont
+from pigui.hardware.controller import MasterController
+from pigui.hardware.display import Display
+from pigui.utils.constants import font
 
 
 class State:
@@ -66,6 +64,12 @@ class EventListener:
 
     def stop(self):
         self.stop_thread = True
+        
+    def on(self, func):
+        def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            return result
+        return wrapper
 
 
 ####################################################################################
@@ -104,6 +108,12 @@ class Component(ABC):
 
         return wrap
 
+    def on(self, event, sleep=0.1, debounce=None):
+        def decorator(func):
+            self.register_event_listener(EventListener([(event, func)], sleep, debounce))
+            print(f"registered {event}, {func}")
+            return func
+        return decorator
 
 ####################################################################################
 
@@ -163,8 +173,6 @@ class Document:
 
         self.frames: Dict[str, Frame] = {}
 
-        # A separate thread to check component states
-
         # Keep track of whether a frame's event listeners
         # e.g. if switch from Menu to an app, menu's event listener's would be stopped
         self.frame_event_listener_states: Dict[Frame, bool] = {}
@@ -174,20 +182,15 @@ class Document:
     def render(self):
         """Render document"""
         cur_frame = self.frames[self.cur_frame_name]
-
-        if (
-            cur_frame not in self.frame_event_listener_states
-            or self.frame_event_listener_states[cur_frame] is False
-        ):
-            cur_frame.start_event_listeners()
-            self.frame_event_listener_states[cur_frame] = True
-
+        self.start_frame_event_listeners(cur_frame)
         cur_frame_img = cur_frame.render()
         if cur_frame_img:
             self.displayer.display_img(cur_frame_img)
 
     def pack_frame(self, frame_name: str, frame: Frame):
         # Assume the first frame added as the entry point
+        if frame_name in self.frames:
+            raise ValueError(f"Frame `{frame_name}` already exists.")
         if self.cur_frame_name is None:
             self.cur_frame_name = frame_name
         self.frames[frame_name] = frame
@@ -201,19 +204,17 @@ class Document:
             raise ValueError(f"Frame `{frame_name}` not found.")
         self.cur_frame_name = frame_name
 
+    def start_frame_event_listeners(self, frame: Frame):
+        if (
+            frame not in self.frame_event_listener_states
+            or self.frame_event_listener_states[frame] is False
+        ):
+            frame.start_event_listeners()
+            self.frame_event_listener_states[frame] = True
+
     def remove_frame_event_listeners(self, frame: Frame):
         frame.stop_event_listeners()
         self.frame_event_listener_states[frame] = False
-
-    def compare_state(self):
-        while True:
-            cur_state = {
-                component: component.get_states() for component in self.components
-            }
-            if not deep_compare(cur_state, self.component_state):
-                self.render()
-                self.component_state = cur_state
-            time.sleep(0.1)
 
     def main_loop(self, fps: bool = True):
         if fps:
