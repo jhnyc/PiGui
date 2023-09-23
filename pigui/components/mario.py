@@ -5,6 +5,7 @@ from pigui.ui import Component, EventListener
 from pigui.utils.constants import *
 from pigui.asset import player, coin, block
 from abc import ABC, abstractmethod
+from enum import Enum, auto
 
 
 class Player:
@@ -95,7 +96,7 @@ class CoinCollection(ObjectCollection):
     def collision_detection(self, player):
         coins_to_remove = set()
         for coin in self.objects:
-            if coin.collision(player):
+            if coin.collision(player) != Collision.NONE:
                 self._collision_count += 1
                 coins_to_remove.add(coin)
         self.objects.difference_update(coins_to_remove)
@@ -119,12 +120,22 @@ class BlockCollection(ObjectCollection):
 
     def collision_detection(self, player) -> bool:
         for obj in self.objects:
-            if obj.collision(player):
+            if obj.collision(player) not in [Collision.NONE, Collision.BOTTOM]:
                 return True
         return False
 
     def reset(self):
         self.objects.clear()
+
+
+class Collision(Enum):
+    """The side of the player that is collided with an object"""
+
+    TOP = auto()
+    BOTTOM = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    NONE = auto()
 
 
 class GameObject(ABC):
@@ -139,23 +150,49 @@ class GameObject(ABC):
     def get_pos(self):
         return self.x, self.y, self.w, self.h
 
-    def collision(self, player):
+    def collision(self, player) -> Collision:
         if self.is_collided:
-            return False
+            return Collision.NONE
+
         player_right = player.x + player.w
         player_bottom = player.y + player.h
         object_right = self.x + self.w
         object_bottom = self.y + self.h
+        
+        #! Super spaghetti code here but it does the job for now        
+        if (
+            0 <= player_bottom - self.y <= 2
+            and player.y <= self.y
+            and player_right >= self.x
+            and player.x <= object_right
+        ):
+            return Collision.BOTTOM
 
         if (
-            player.x < object_right
-            and player_right > self.x
-            and player.y < object_bottom
-            and player_bottom > self.y
+            0 <= object_bottom - player.y <= 2
+            and player_bottom >= self.y
+            and player_right >= self.x
+            and player.x <= object_right
         ):
-            self.is_collided = True
-            return True
-        return False
+            return Collision.TOP
+
+        if (
+            player.x <= object_right
+            and player_right >= self.x
+            and player.y <= object_bottom
+            and player_bottom >= self.y
+        ):
+            return Collision.RIGHT
+
+        if (
+            player_right >= self.x
+            and player.x <= self.x
+            and player.y <= object_bottom
+            and player_bottom >= self.y
+        ):
+            return Collision.LEFT
+
+        return Collision.NONE
 
     def draw_on(self, image: np.ndarray):
         display_w = min(screen_width - self.x, self.w)
@@ -182,7 +219,6 @@ class Block(GameObject):
     def __init__(self, y, w, h, image_array=block):
         super().__init__(y, w, h, image_array)
         self.is_collided = False
-
 
 class Mario(Component):
     def __init__(self, document):
