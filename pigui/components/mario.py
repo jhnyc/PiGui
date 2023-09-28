@@ -21,17 +21,33 @@ class Player:
         self.is_ascending = False
         self.jump_h = jump_h
         assert self.player_array.shape == (self.h, self.w)
+        self.is_landed_on_block = False
+        self.block_y = None
+
+    @property
+    def bottom(self):
+        return self.y + self.h
 
     def get_pos(self):
+        return (self.x, self.y, self.w, self.h)
+
+    def update(self):
         if self.is_jumping:
-            self.y += -2 if self.is_ascending else 2
+            self.y -= 1
             # if reach max height -> descend
             if self.init_y - self.y >= self.jump_h:
-                self.is_ascending = False
-            # if reach ground -> no longer jumping
-            if self.init_y == self.y:
                 self.is_jumping = False
-        return (self.x, self.y, self.w, self.h)
+            return
+        if self.is_landed_on_block:
+            self.y = self.block_y - self.h
+            return
+        if (
+            not self.is_jumping
+            and self.y != self.init_y
+            and not self.is_landed_on_block
+        ):
+            self.y += 1
+            return
 
     def draw_on(self, image: np.ndarray) -> np.ndarray:
         """Draw player on top of an image."""
@@ -43,8 +59,15 @@ class Player:
     def jump(self):
         if self.is_jumping:
             return
+        self.is_landed_on_block = False
         self.is_jumping = True
         self.is_ascending = True
+        self.block_y = None
+
+    def land_on_block(self, block):
+        self.is_jumping = False
+        self.is_landed_on_block = True
+        self.block_y = block.y
 
 
 class ObjectCollection(ABC):
@@ -120,8 +143,15 @@ class BlockCollection(ObjectCollection):
 
     def collision_detection(self, player) -> bool:
         for obj in self.objects:
-            if obj.collision(player) not in [Collision.NONE, Collision.BOTTOM]:
+            collision_type = obj.collision(player)
+            # print(obj.get_pos(), collision_type, player.get_pos())
+            if collision_type not in [Collision.NONE, Collision.BOTTOM]:
                 return True
+            if collision_type == Collision.BOTTOM:
+                player.land_on_block(obj)
+                return
+        # No any type of collision, go back to ground
+        player.is_landed_on_block = False
         return False
 
     def reset(self):
@@ -151,15 +181,13 @@ class GameObject(ABC):
         return self.x, self.y, self.w, self.h
 
     def collision(self, player) -> Collision:
-        if self.is_collided:
-            return Collision.NONE
-
         player_right = player.x + player.w
         player_bottom = player.y + player.h
         object_right = self.x + self.w
         object_bottom = self.y + self.h
-        
-        #! Super spaghetti code here but it does the job for now        
+
+        self.is_collided = True
+        #! Super spaghetti code here but it does the job for now
         if (
             0 <= player_bottom - self.y <= 2
             and player.y <= self.y
@@ -192,6 +220,7 @@ class GameObject(ABC):
         ):
             return Collision.LEFT
 
+        self.is_collided = False
         return Collision.NONE
 
     def draw_on(self, image: np.ndarray):
@@ -219,6 +248,7 @@ class Block(GameObject):
     def __init__(self, y, w, h, image_array=block):
         super().__init__(y, w, h, image_array)
         self.is_collided = False
+
 
 class Mario(Component):
     def __init__(self, document):
@@ -255,6 +285,7 @@ class Mario(Component):
             return
         self.blocks.update(self.speed)
         self.blocks.draw(self.pixel_array)
+        self.player.update()
         if self.blocks.collision_detection(self.player):
             print("boom")
             self.is_gameover = True
